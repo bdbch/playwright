@@ -216,21 +216,18 @@ function translatePackageNameForArchLinux(packageName: string): string | undefin
   const translated = ARCH_PACKAGE_NAME_MAP[packageName];
   if (translated)
     return translated;
+  if (/^libicu\d+(?:t64)?$/.test(packageName))
+    return 'icu';
+  if (/^libvpx\d+(?:t64)?$/.test(packageName))
+    return 'libvpx';
+  if (/^libwebp\d+(?:t64)?$/.test(packageName))
+    return 'libwebp';
+  if (/^libx264-\d+(?:t64)?$/.test(packageName))
+    return 'x264';
   if (!packageName.endsWith(TIME64_SUFFIX))
     return undefined;
   const normalizedPackageName = packageName.substring(0, packageName.length - TIME64_SUFFIX.length);
-  const normalizedTranslated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName];
-  if (normalizedTranslated)
-    return normalizedTranslated;
-  if (/^libicu\d+$/.test(normalizedPackageName))
-    return 'icu';
-  if (/^libvpx\d+$/.test(normalizedPackageName))
-    return 'libvpx';
-  if (/^libwebp\d+$/.test(normalizedPackageName))
-    return 'libwebp';
-  if (/^libx264-\d+$/.test(normalizedPackageName))
-    return 'x264';
-  return undefined;
+  return ARCH_PACKAGE_NAME_MAP[normalizedPackageName];
 }
 
 function translatePackagesForArchLinux(packages: string[]): string[] {
@@ -357,9 +354,13 @@ async function reportMissingDependenciesArchLinux(packages: string[]) {
   if (error)
     throw new Error(`Failed to run 'pacman -T' to simulate dependency install: ${error.message}`);
   const missingPackages = stdout.split('\n').map(line => line.trim()).filter(Boolean);
+  // `pacman -T` prints missing packages to stdout and returns 0 when everything
+  // is installed. If it returns non-zero without any stdout, treat that as an error.
   if (!missingPackages.length) {
-    if (code !== 0)
-      throw new Error(`'pacman -T' exited with code ${code}:\n${[stderr.trim(), stdout.trim()].filter(Boolean).join('\n') || 'no output'}`);
+    if (code !== 0) {
+      const output = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n');
+      throw new Error(`'pacman -T' exited with code ${code}:\n${output || 'no output'}`);
+    }
     console.log('All system dependencies are installed.'); // eslint-disable-line no-console
     return;
   }
