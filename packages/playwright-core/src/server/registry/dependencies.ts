@@ -87,13 +87,9 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libfontconfig1': 'fontconfig',
   'libfreetype6': 'freetype2',
   'libasound2': 'alsa-lib',
-  'libasound2t64': 'alsa-lib',
   'libatk-bridge2.0-0': 'at-spi2-core',
-  'libatk-bridge2.0-0t64': 'at-spi2-core',
   'libatk1.0-0': 'atk',
-  'libatk1.0-0t64': 'atk',
   'libatspi2.0-0': 'at-spi2-core',
-  'libatspi2.0-0t64': 'at-spi2-core',
   'libavcodec60': 'ffmpeg',
   'libavif13': 'libavif',
   'libavif15': 'libavif',
@@ -101,7 +97,6 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libcairo-gobject2': 'cairo',
   'libcairo2': 'cairo',
   'libcups2': 'cups',
-  'libcups2t64': 'cups',
   'libdbus-1-3': 'dbus',
   'libdbus-glib-1-2': 'dbus-glib',
   'libdrm2': 'libdrm',
@@ -109,7 +104,6 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libenchant-2-2': 'enchant',
   'libepoxy0': 'libepoxy',
   'libevent-2.1-7': 'libevent',
-  'libevent-2.1-7t64': 'libevent',
   'libffi7': 'libffi',
   'libflite1': 'flite',
   'libgdk-pixbuf-2.0-0': 'gdk-pixbuf2',
@@ -123,9 +117,7 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libgstreamer1.0-0': 'gstreamer',
   'libgudev-1.0-0': 'libgudev',
   'libglib2.0-0': 'glib2',
-  'libglib2.0-0t64': 'glib2',
   'libgtk-3-0': 'gtk3',
-  'libgtk-3-0t64': 'gtk3',
   'libgtk-4-1': 'gtk4',
   'libharfbuzz-icu0': 'harfbuzz',
   'libharfbuzz0b': 'harfbuzz',
@@ -151,7 +143,6 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libpangocairo-1.0-0': 'pango',
   'libpangoft2-1.0-0': 'pango',
   'libpng16-16': 'libpng',
-  'libpng16-16t64': 'libpng',
   'libproxy1v5': 'libproxy',
   'libsecret-1-0': 'libsecret',
   'libsoup-3.0-0': 'libsoup3',
@@ -211,7 +202,7 @@ function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
   const distroInfo = getLinuxDistributionInfoSync();
   if (!distroInfo)
     return undefined;
-  if (distroInfo.id === 'debian' || distroInfo.id === 'ubuntu' || distroInfo.idLike.includes('debian'))
+  if (distroInfo.id === 'debian' || distroInfo.idLike.includes('debian'))
     return 'debian';
   if (distroInfo.id === 'arch' || distroInfo.id === 'archlinux' || distroInfo.idLike.includes('arch') || distroInfo.idLike.includes('archlinux'))
     return 'arch';
@@ -318,7 +309,7 @@ async function installDependenciesArchLinux(targets: Set<DependencyGroup>, dryRu
     return;
   }
   console.log(`Installing dependencies...`); // eslint-disable-line no-console
-  const commands = [['pacman', '-Syu', '--noconfirm', '--needed', ...translatedLibraries].join(' ')];
+  const commands = [['pacman', '-S', '--noconfirm', '--needed', ...translatedLibraries].join(' ')];
   const { command, args, elevatedPermissions } = await transformCommandsForRoot(commands);
   if (elevatedPermissions)
     console.log('Switching to root user to install dependencies...'); // eslint-disable-line no-console
