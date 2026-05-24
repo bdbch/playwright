@@ -21,6 +21,7 @@ import path from 'path';
 
 import { wrapInASCIIBox } from '@utils/ascii';
 import { hostPlatform, isOfficiallySupportedPlatform } from '@utils/hostPlatform';
+import { getLinuxDistributionInfoSync } from '@utils/linuxUtils';
 import { spawnAsync } from '@utils/spawnAsync';
 import { getPlaywrightVersion } from '../userAgent';
 import { deps } from './nativeDeps';
@@ -75,6 +76,181 @@ function isSupportedWindowsVersion(): boolean {
 
 export type DependencyGroup = 'chromium' | 'firefox' | 'webkit' | 'tools';
 
+type LinuxDistributionFamily = 'debian' | 'arch';
+
+const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
+  'xvfb': 'xorg-server-xvfb',
+  'fonts-noto-color-emoji': 'noto-fonts-emoji',
+  'fonts-liberation': 'ttf-liberation',
+  'xfonts-cyrillic': 'xorg-fonts-cyrillic',
+  'fonts-freefont-ttf': 'gnu-free-fonts',
+  'libfontconfig1': 'fontconfig',
+  'libfreetype6': 'freetype2',
+  'libasound2': 'alsa-lib',
+  'libasound2t64': 'alsa-lib',
+  'libatk-bridge2.0-0': 'at-spi2-core',
+  'libatk-bridge2.0-0t64': 'at-spi2-core',
+  'libatk1.0-0': 'atk',
+  'libatk1.0-0t64': 'atk',
+  'libatspi2.0-0': 'at-spi2-core',
+  'libatspi2.0-0t64': 'at-spi2-core',
+  'libavcodec60': 'ffmpeg',
+  'libavif13': 'libavif',
+  'libavif15': 'libavif',
+  'libavif16': 'libavif',
+  'libcairo-gobject2': 'cairo',
+  'libcairo2': 'cairo',
+  'libcups2': 'cups',
+  'libcups2t64': 'cups',
+  'libdbus-1-3': 'dbus',
+  'libdbus-glib-1-2': 'dbus-glib',
+  'libdrm2': 'libdrm',
+  'libegl1': 'libglvnd',
+  'libenchant-2-2': 'enchant',
+  'libepoxy0': 'libepoxy',
+  'libevent-2.1-7': 'libevent',
+  'libevent-2.1-7t64': 'libevent',
+  'libffi7': 'libffi',
+  'libflite1': 'flite',
+  'libgdk-pixbuf-2.0-0': 'gdk-pixbuf2',
+  'libgdk-pixbuf2.0-0': 'gdk-pixbuf2',
+  'libgbm1': 'mesa',
+  'libgl1': 'libglvnd',
+  'libgles2': 'libglvnd',
+  'libgstreamer-gl1.0-0': 'gst-plugins-base',
+  'libgstreamer-plugins-bad1.0-0': 'gst-plugins-bad',
+  'libgstreamer-plugins-base1.0-0': 'gst-plugins-base',
+  'libgstreamer1.0-0': 'gstreamer',
+  'libgudev-1.0-0': 'libgudev',
+  'libglib2.0-0': 'glib2',
+  'libglib2.0-0t64': 'glib2',
+  'libgtk-3-0': 'gtk3',
+  'libgtk-3-0t64': 'gtk3',
+  'libgtk-4-1': 'gtk4',
+  'libharfbuzz-icu0': 'harfbuzz',
+  'libharfbuzz0b': 'harfbuzz',
+  'libhyphen0': 'hyphen',
+  'libicu66': 'icu',
+  'libicu67': 'icu',
+  'libicu70': 'icu',
+  'libicu72': 'icu',
+  'libicu74': 'icu',
+  'libicu76': 'icu',
+  'libjpeg-turbo8': 'libjpeg-turbo',
+  'libjpeg62-turbo': 'libjpeg-turbo',
+  'liblcms2-2': 'lcms2',
+  'libmanette-0.2-0': 'libmanette',
+  'libnghttp2-14': 'nghttp2',
+  'libnotify4': 'libnotify',
+  'libnss3': 'nss',
+  'libnspr4': 'nspr',
+  'libopenjp2-7': 'openjpeg2',
+  'libopengl0': 'libglvnd',
+  'libopus0': 'opus',
+  'libpango-1.0-0': 'pango',
+  'libpangocairo-1.0-0': 'pango',
+  'libpangoft2-1.0-0': 'pango',
+  'libpng16-16': 'libpng',
+  'libpng16-16t64': 'libpng',
+  'libproxy1v5': 'libproxy',
+  'libsecret-1-0': 'libsecret',
+  'libsoup-3.0-0': 'libsoup3',
+  'libvpx6': 'libvpx',
+  'libvpx7': 'libvpx',
+  'libvpx9': 'libvpx',
+  'libwayland-client0': 'wayland',
+  'libwayland-egl1': 'wayland',
+  'libwayland-server0': 'wayland',
+  'libwebp6': 'libwebp',
+  'libwebp7': 'libwebp',
+  'libwebpdemux2': 'libwebp',
+  'libwoff1': 'woff2',
+  'libx11-6': 'libx11',
+  'libx11-xcb1': 'libx11',
+  'libx264-155': 'x264',
+  'libx264-163': 'x264',
+  'libx264-164': 'x264',
+  'libxcb-dri3-0': 'libxcb',
+  'libxcb-shm0': 'libxcb',
+  'libxcb1': 'libxcb',
+  'libxcomposite1': 'libxcomposite',
+  'libxcursor1': 'xcursor',
+  'libxdamage1': 'libxdamage',
+  'libxext6': 'libxext',
+  'libxfixes3': 'libxfixes',
+  'libxi6': 'libxi',
+  'libxkbcommon0': 'libxkbcommon',
+  'libxshmfence1': 'libxshmfence',
+  'libxml2': 'libxml2',
+  'libxrandr2': 'libxrandr',
+  'libxrender1': 'libxrender',
+  'libxslt1.1': 'libxslt',
+  'libxt6': 'libxt',
+  'libxtst6': 'libxtst',
+  'libatomic1': 'gcc-libs',
+  'gstreamer1.0-libav': 'gst-libav',
+  'gstreamer1.0-plugins-bad': 'gst-plugins-bad',
+  'gstreamer1.0-plugins-base': 'gst-plugins-base',
+  'gstreamer1.0-plugins-good': 'gst-plugins-good',
+  'libglx0': 'libglvnd',
+};
+
+function collectDependencyPackages(targets: Set<DependencyGroup>, platform: string): string[] | undefined {
+  const info = deps[platform];
+  if (!info) {
+    console.warn(`Cannot install dependencies for ${platform} with Playwright ${getPlaywrightVersion()}!`);  // eslint-disable-line no-console
+    return undefined;
+  }
+  const packages: string[] = [];
+  for (const target of targets)
+    packages.push(...info[target]);
+  return Array.from(new Set(packages));
+}
+
+function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
+  const distroInfo = getLinuxDistributionInfoSync();
+  if (!distroInfo)
+    return undefined;
+  if (distroInfo.id === 'debian' || distroInfo.id === 'ubuntu' || distroInfo.idLike.includes('debian'))
+    return 'debian';
+  if (distroInfo.id === 'arch' || distroInfo.id === 'archlinux' || distroInfo.idLike.includes('arch') || distroInfo.idLike.includes('archlinux'))
+    return 'arch';
+  return undefined;
+}
+
+function translatePackageNameForArchLinux(packageName: string): string | undefined {
+  const normalizedPackageName = packageName.replace(/t64$/, '');
+  const translated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName] || ARCH_PACKAGE_NAME_MAP[packageName];
+  if (translated)
+    return translated;
+  if (/^libicu\d+$/.test(normalizedPackageName))
+    return 'icu';
+  if (/^libvpx\d+$/.test(normalizedPackageName))
+    return 'libvpx';
+  if (/^libwebp\d+$/.test(normalizedPackageName))
+    return 'libwebp';
+  if (/^libx264-\d+$/.test(normalizedPackageName))
+    return 'x264';
+  return undefined;
+}
+
+function translatePackagesForArchLinux(packages: string[]): string[] {
+  const translatedPackages = new Set<string>();
+  const skippedPackages = new Set<string>();
+  for (const packageName of packages) {
+    const translatedPackage = translatePackageNameForArchLinux(packageName);
+    if (translatedPackage)
+      translatedPackages.add(translatedPackage);
+    else
+      skippedPackages.add(packageName);
+  }
+  if (skippedPackages.size) {
+    // eslint-disable-next-line no-console
+    console.warn(`Skipping packages without a known Arch Linux translation: ${[...skippedPackages].sort().join(', ')}`);
+  }
+  return [...translatedPackages];
+}
+
 export async function installDependenciesWindows(targets: Set<DependencyGroup>, dryRun: boolean): Promise<void> {
   if (targets.has('chromium')) {
     const command = 'powershell.exe';
@@ -90,19 +266,24 @@ export async function installDependenciesWindows(targets: Set<DependencyGroup>, 
 }
 
 export async function installDependenciesLinux(targets: Set<DependencyGroup>, dryRun: boolean) {
-  const libraries: string[] = [];
-  const platform = hostPlatform;
   if (!isOfficiallySupportedPlatform)
-    console.warn(`BEWARE: your OS is not officially supported by Playwright; installing dependencies for ${platform} as a fallback.`); // eslint-disable-line no-console
-  for (const target of targets) {
-    const info = deps[platform];
-    if (!info) {
-      console.warn(`Cannot install dependencies for ${platform} with Playwright ${getPlaywrightVersion()}!`);  // eslint-disable-line no-console
-      return;
-    }
-    libraries.push(...info[target]);
+    console.warn(`BEWARE: your OS is not officially supported by Playwright; installing dependencies for ${hostPlatform} as a fallback.`); // eslint-disable-line no-console
+  const family = detectLinuxDistributionFamily();
+  if (family === 'arch') {
+    await installDependenciesArchLinux(targets, dryRun);
+    return;
   }
-  const uniqueLibraries = Array.from(new Set(libraries));
+  if (family === 'debian') {
+    await installDependenciesDebian(targets, dryRun);
+    return;
+  }
+  console.warn(`Cannot install dependencies for ${hostPlatform} on this Linux distribution with Playwright ${getPlaywrightVersion()}!`);  // eslint-disable-line no-console
+}
+
+async function installDependenciesDebian(targets: Set<DependencyGroup>, dryRun: boolean) {
+  const uniqueLibraries = collectDependencyPackages(targets, hostPlatform);
+  if (!uniqueLibraries)
+    return;
   if (dryRun) {
     await reportMissingDependenciesLinux(uniqueLibraries);
     return;
@@ -113,7 +294,32 @@ export async function installDependenciesLinux(targets: Set<DependencyGroup>, dr
   commands.push(['apt-get', 'install', '-y', '--no-install-recommends',
     ...uniqueLibraries,
   ].join(' '));
-  const { command, args, elevatedPermissions } = await transformCommandsForRoot(commands);
+  const { command, args, elevatedPermissions } = await transformCommandsForRoot(commands);
+  if (elevatedPermissions)
+    console.log('Switching to root user to install dependencies...'); // eslint-disable-line no-console
+  const child = childProcess.spawn(command, args, { stdio: 'inherit' });
+  await new Promise<void>((resolve, reject) => {
+    child.on('exit', (code: number) => code === 0 ? resolve() : reject(new Error(`Installation process exited with code: ${code}`)));
+    child.on('error', reject);
+  });
+}
+
+async function installDependenciesArchLinux(targets: Set<DependencyGroup>, dryRun: boolean) {
+  const uniqueLibraries = collectDependencyPackages(targets, hostPlatform);
+  if (!uniqueLibraries)
+    return;
+  const translatedLibraries = translatePackagesForArchLinux(uniqueLibraries);
+  if (!translatedLibraries.length) {
+    console.warn(`No Arch Linux package translations were found for Playwright ${getPlaywrightVersion()}.`); // eslint-disable-line no-console
+    return;
+  }
+  if (dryRun) {
+    await reportMissingDependenciesArchLinux(translatedLibraries);
+    return;
+  }
+  console.log(`Installing dependencies...`); // eslint-disable-line no-console
+  const commands = [['pacman', '-Sy', '--noconfirm', '--needed', ...translatedLibraries].join(' ')];
+  const { command, args, elevatedPermissions } = await transformCommandsForRoot(commands);
   if (elevatedPermissions)
     console.log('Switching to root user to install dependencies...'); // eslint-disable-line no-console
   const child = childProcess.spawn(command, args, { stdio: 'inherit' });
@@ -138,6 +344,22 @@ async function reportMissingDependenciesLinux(packages: string[]) {
     if (match)
       missingPackages.push(match[1]);
   }
+  if (!missingPackages.length) {
+    console.log('All system dependencies are installed.'); // eslint-disable-line no-console
+    return;
+  }
+  // eslint-disable-next-line no-console
+  console.log(`Missing system dependencies (${missingPackages.length}):\n${missingPackages.sort().map(p => `  ${p}`).join('\n')}`);
+  process.exitCode = 1;
+}
+
+async function reportMissingDependenciesArchLinux(packages: string[]) {
+  const { code, stdout, stderr, error } = await spawnAsync('pacman', ['-T', ...packages], {});
+  if (error)
+    throw new Error(`Failed to run 'pacman -T' to simulate dependency install: ${error.message}`);
+  const missingPackages = stdout.split('\n').map(line => line.trim()).filter(Boolean);
+  if (code !== 0 && !missingPackages.length)
+    throw new Error(`'pacman -T' exited with code ${code}:\n${stderr || stdout}`);
   if (!missingPackages.length) {
     console.log('All system dependencies are installed.'); // eslint-disable-line no-console
     return;
