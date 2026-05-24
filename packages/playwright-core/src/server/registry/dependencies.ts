@@ -78,6 +78,9 @@ export type DependencyGroup = 'chromium' | 'firefox' | 'webkit' | 'tools';
 
 type LinuxDistributionFamily = 'debian' | 'arch';
 
+const TIME64_SUFFIX = 't64';
+const ARCH_LINUX_IDS = new Set(['arch', 'archlinux']);
+
 const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'xvfb': 'xorg-server-xvfb',
   'fonts-noto-color-emoji': 'noto-fonts-emoji',
@@ -204,13 +207,13 @@ function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
     return undefined;
   if (distroInfo.id === 'debian' || distroInfo.idLike.includes('debian'))
     return 'debian';
-  if (distroInfo.id === 'arch' || distroInfo.id === 'archlinux' || distroInfo.idLike.includes('arch') || distroInfo.idLike.includes('archlinux'))
+  if (ARCH_LINUX_IDS.has(distroInfo.id) || distroInfo.idLike.some(id => ARCH_LINUX_IDS.has(id)))
     return 'arch';
   return undefined;
 }
 
 function translatePackageNameForArchLinux(packageName: string): string | undefined {
-  const normalizedPackageName = packageName.endsWith('t64') ? packageName.substring(0, packageName.length - 3) : packageName;
+  const normalizedPackageName = packageName.endsWith(TIME64_SUFFIX) ? packageName.substring(0, packageName.length - TIME64_SUFFIX.length) : packageName;
   const translated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName] || ARCH_PACKAGE_NAME_MAP[packageName];
   if (translated)
     return translated;
@@ -349,9 +352,9 @@ async function reportMissingDependenciesArchLinux(packages: string[]) {
   if (error)
     throw new Error(`Failed to run 'pacman -T' to simulate dependency install: ${error.message}`);
   const missingPackages = stdout.split('\n').map(line => line.trim()).filter(Boolean);
-  if (code !== 0 && !missingPackages.length)
-    throw new Error(`'pacman -T' exited with code ${code}:\n${stderr || stdout}`);
   if (!missingPackages.length) {
+    if (code !== 0)
+      throw new Error(`'pacman -T' exited with code ${code}:\n${stderr || stdout}`);
     console.log('All system dependencies are installed.'); // eslint-disable-line no-console
     return;
   }
