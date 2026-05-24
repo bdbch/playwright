@@ -354,18 +354,16 @@ async function reportMissingDependenciesArchLinux(packages: string[]) {
   if (error)
     throw new Error(`Failed to run 'pacman -T' to simulate dependency install: ${error.message}`);
   const missingPackages = stdout.split('\n').map(line => line.trim()).filter(Boolean);
-  // `pacman -T` returns 0 and prints missing packages to stdout when some are
-  // missing. It returns 127 when everything is already installed.
-  if (code === 127) {
-    if (missingPackages.length)
-      throw new Error(`'pacman -T' exited with code 127 but reported packages:\n${stdout}`);
+  // `pacman -T` returns 0 when all packages are already installed and 127 when
+  // some packages are missing.
+  if (code === 0) {
     console.log('All system dependencies are installed.'); // eslint-disable-line no-console
     return;
   }
-  if (code !== 0)
+  if (code !== 127)
     throw new Error(`'pacman -T' exited with code ${code}:\n${[stderr.trim(), stdout.trim()].filter(Boolean).join('\n') || 'no output'}`);
   if (!missingPackages.length)
-    throw new Error(`'pacman -T' exited with code 0 but reported no missing packages.`);
+    throw new Error(`'pacman -T' exited with code 127 but reported no missing packages.`);
   // eslint-disable-next-line no-console
   console.log(`Missing system dependencies (${missingPackages.length}):\n${missingPackages.sort().map(p => `  ${p}`).join('\n')}`);
   process.exitCode = 1;
