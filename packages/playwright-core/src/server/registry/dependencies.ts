@@ -213,10 +213,15 @@ function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
 }
 
 function translatePackageNameForArchLinux(packageName: string): string | undefined {
-  const normalizedPackageName = packageName.endsWith(TIME64_SUFFIX) ? packageName.substring(0, packageName.length - TIME64_SUFFIX.length) : packageName;
-  const translated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName] || ARCH_PACKAGE_NAME_MAP[packageName];
+  const translated = ARCH_PACKAGE_NAME_MAP[packageName];
   if (translated)
     return translated;
+  if (!packageName.endsWith(TIME64_SUFFIX))
+    return undefined;
+  const normalizedPackageName = packageName.substring(0, packageName.length - TIME64_SUFFIX.length);
+  const normalizedTranslated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName];
+  if (normalizedTranslated)
+    return normalizedTranslated;
   if (/^libicu\d+$/.test(normalizedPackageName))
     return 'icu';
   if (/^libvpx\d+$/.test(normalizedPackageName))
@@ -354,7 +359,7 @@ async function reportMissingDependenciesArchLinux(packages: string[]) {
   const missingPackages = stdout.split('\n').map(line => line.trim()).filter(Boolean);
   if (!missingPackages.length) {
     if (code !== 0)
-      throw new Error(`'pacman -T' exited with code ${code}:\n${stderr || stdout}`);
+      throw new Error(`'pacman -T' exited with code ${code}:\n${[stderr.trim(), stdout.trim()].filter(Boolean).join('\n') || 'no output'}`);
     console.log('All system dependencies are installed.'); // eslint-disable-line no-console
     return;
   }
