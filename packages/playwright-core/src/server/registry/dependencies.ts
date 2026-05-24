@@ -242,7 +242,7 @@ function translatePackagesForArchLinux(packages: string[]): string[] {
   }
   if (skippedPackages.size) {
     // eslint-disable-next-line no-console
-    console.warn(`Skipping packages without a known Arch Linux translation: ${[...skippedPackages].sort().join(', ')}`);
+    console.warn(`Skipping packages without a known Arch Linux translation: ${[...skippedPackages].sort().join(', ')}. If browser startup fails, install the missing packages manually.`);
   }
   return [...translatedPackages];
 }
@@ -273,7 +273,7 @@ export async function installDependenciesLinux(targets: Set<DependencyGroup>, dr
     await installDependenciesDebian(targets, dryRun);
     return;
   }
-  console.warn(`Cannot install dependencies for ${hostPlatform} on this Linux distribution with Playwright ${getPlaywrightVersion()}!`);  // eslint-disable-line no-console
+  console.warn(`Cannot install dependencies for ${hostPlatform} on this Linux distribution with Playwright ${getPlaywrightVersion()}. Please install the required packages manually or use a supported Debian/Ubuntu or Arch-based distribution.`);  // eslint-disable-line no-console
 }
 
 async function installDependenciesDebian(targets: Set<DependencyGroup>, dryRun: boolean) {
@@ -306,7 +306,7 @@ async function installDependenciesArchLinux(targets: Set<DependencyGroup>, dryRu
     return;
   const translatedLibraries = translatePackagesForArchLinux(uniqueLibraries);
   if (!translatedLibraries.length) {
-    console.warn(`No Arch Linux package translations were found for Playwright ${getPlaywrightVersion()}.`); // eslint-disable-line no-console
+    console.warn(`All required packages were skipped during Arch Linux translation for Playwright ${getPlaywrightVersion()}.`); // eslint-disable-line no-console
     return;
   }
   if (dryRun) {
