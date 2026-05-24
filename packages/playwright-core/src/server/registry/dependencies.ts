@@ -76,8 +76,6 @@ function isSupportedWindowsVersion(): boolean {
 
 export type DependencyGroup = 'chromium' | 'firefox' | 'webkit' | 'tools';
 
-type LinuxDistributionFamily = 'debian' | 'arch';
-
 const TIME64_SUFFIX = 't64';
 const ARCH_LINUX_IDS = new Set(['arch', 'archlinux']);
 
@@ -201,13 +199,13 @@ function collectDependencyPackages(targets: Set<DependencyGroup>, platform: stri
   return Array.from(new Set(packages));
 }
 
-function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
+function detectLinuxDistributionFamily(): 'debian' | 'arch' | undefined {
   const distroInfo = getLinuxDistributionInfoSync();
   if (!distroInfo)
     return undefined;
-  if (distroInfo.id === 'debian' || distroInfo.idLike.includes('debian'))
+  if (distroInfo.id === 'debian' || distroInfo.idLike?.includes('debian'))
     return 'debian';
-  if (ARCH_LINUX_IDS.has(distroInfo.id) || distroInfo.idLike.some(id => ARCH_LINUX_IDS.has(id)))
+  if (ARCH_LINUX_IDS.has(distroInfo.id) || distroInfo.idLike?.some(id => ARCH_LINUX_IDS.has(id)))
     return 'arch';
   return undefined;
 }
