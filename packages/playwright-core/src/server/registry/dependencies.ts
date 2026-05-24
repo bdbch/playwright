@@ -174,7 +174,7 @@ const ARCH_PACKAGE_NAME_MAP: { [key: string]: string | undefined } = {
   'libxcb-shm0': 'libxcb',
   'libxcb1': 'libxcb',
   'libxcomposite1': 'libxcomposite',
-  'libxcursor1': 'xcursor',
+  'libxcursor1': 'libxcursor',
   'libxdamage1': 'libxdamage',
   'libxext6': 'libxext',
   'libxfixes3': 'libxfixes',
@@ -219,7 +219,7 @@ function detectLinuxDistributionFamily(): LinuxDistributionFamily | undefined {
 }
 
 function translatePackageNameForArchLinux(packageName: string): string | undefined {
-  const normalizedPackageName = packageName.replace(/t64$/, '');
+  const normalizedPackageName = packageName.endsWith('t64') ? packageName.substring(0, packageName.length - 3) : packageName;
   const translated = ARCH_PACKAGE_NAME_MAP[normalizedPackageName] || ARCH_PACKAGE_NAME_MAP[packageName];
   if (translated)
     return translated;
@@ -318,7 +318,7 @@ async function installDependenciesArchLinux(targets: Set<DependencyGroup>, dryRu
     return;
   }
   console.log(`Installing dependencies...`); // eslint-disable-line no-console
-  const commands = [['pacman', '-Sy', '--noconfirm', '--needed', ...translatedLibraries].join(' ')];
+  const commands = [['pacman', '-Syu', '--noconfirm', '--needed', ...translatedLibraries].join(' ')];
   const { command, args, elevatedPermissions } = await transformCommandsForRoot(commands);
   if (elevatedPermissions)
     console.log('Switching to root user to install dependencies...'); // eslint-disable-line no-console
